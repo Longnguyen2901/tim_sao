@@ -144,6 +144,7 @@ h2{font-family:var(--f-display);font-size:13px;letter-spacing:.08em;text-transfo
       <button class="chip" id="modeBtn">Chế độ: kéo tay</button>
       <button class="chip" id="jumpBtn" hidden>Tới mục tiêu</button>
       <button class="chip" id="calBtn" hidden>Căn chỉnh theo mục tiêu</button>
+      <button class="chip" id="calReset" hidden>Bỏ căn chỉnh</button>
     </div>
   </section>
 </main>
@@ -335,7 +336,7 @@ function heightWords(alt){
 const PLACES=[["Buôn Ma Thuột",12.67,108.04],["Pleiku",13.98,108.0],["Kon Tum",14.35,108.0],["Đà Lạt",11.94,108.44],["Quy Nhơn",13.78,109.22],
  ["Đà Nẵng",16.05,108.2],["Huế",16.46,107.59],["Hà Nội",21.03,105.85],["TP.HCM",10.78,106.7],["Cần Thơ",10.03,105.78]];
 const st={lat:12.67,lon:108.04,timeMode:"now",timeAt:null,mode:"manual",
- point:{az:180,alt:35},heading:0,target:null,sky:null,skyAt:0,cal:{daz:0,dalt:0},found:false,view:"v-compass"};
+ point:{az:180,alt:35},heading:0,target:null,sky:null,skyAt:0,cal:{daz:0},found:false,view:"v-compass"};
 let colors={};
 function readColors(){const cs=getComputedStyle(document.documentElement);
  for(const k of["bg","fg","muted","accent","good","sky","ground","cline","line"])colors[k]=cs.getPropertyValue("--"+k).trim();}
@@ -565,6 +566,7 @@ function updateGuide(){
  const g=$("guide");
  $("jumpBtn").hidden=!st.target||st.mode!=="manual";
  $("calBtn").hidden=!st.target||st.mode!=="sensor";
+ $("calReset").hidden=st.mode!=="sensor"||st.cal.daz===0;
  if(!st.target){$("gName").textContent="Chưa chọn mục tiêu";$("gIns").textContent='Chọn một mục ở tab "Tối nay"';$("gTip").textContent="";g.classList.remove("found");return;}
  const sky=refreshSky(),tp=targetPos(st.target,sky),info=targetInfo(st.target);
  $("gName").textContent=info.name+" · hướng "+dirName(tp.az)+", "+heightWords(tp.alt);
@@ -602,10 +604,16 @@ $("jumpBtn").addEventListener("click",()=>{
   st.point.az=wrap360(from.az+dAz*e);st.point.alt=from.alt+(tp.alt-from.alt)*e;if(k<1)requestAnimationFrame(step);})(t0);
 });
 $("calBtn").addEventListener("click",()=>{
- const tp=targetPos(st.target,refreshSky());
- st.cal.daz=wrap180(st.cal.daz+wrap180(tp.az-st.point.az));st.cal.dalt=st.cal.dalt+(tp.alt-st.point.alt);
- toast("Đã căn chỉnh. Chỉ bấm nút này khi lưng điện thoại thật sự chĩa đúng vào mục tiêu bạn đang nhìn thấy.");
+ const sky=refreshSky(),tp=targetPos(st.target,sky);
+ if(st.target!=="moon"&&sky.sun.alt>-6){toast("Lúc trời còn sáng chỉ căn chỉnh được theo Mặt Trăng, vì các mục khác mắt thường chưa thấy.");return;}
+ if(tp.alt<3){toast("Mục tiêu đang dưới chân trời, không dùng để căn chỉnh được.");return;}
+ const dAlt=tp.alt-st.point.alt,dAz=wrap180(tp.az-st.point.az);
+ if(Math.abs(dAlt)>12){toast("Chưa chĩa đúng độ cao của mục tiêu. Hãy nhìn thấy mục tiêu bằng mắt, chĩa lưng máy vào nó rồi mới bấm.");return;}
+ if(Math.abs(dAz)>60){toast("Lệch hướng quá xa (hơn 60°). Hãy chĩa lưng máy đúng vào mục tiêu bạn đang nhìn thấy rồi mới bấm.");return;}
+ st.cal.daz=wrap180(st.cal.daz+dAz);
+ toast("Đã căn chỉnh la bàn lệch "+Math.round(dAz)+"°. Bấm \"Bỏ căn chỉnh\" nếu thấy sai.");
 });
+$("calReset").addEventListener("click",()=>{st.cal.daz=0;toast("Đã bỏ căn chỉnh, la bàn quay về số đo gốc.");});
 
 const sens={delta:null,ok:false,v:null,hd:null};
 function onOrient(e,isAbs){
@@ -625,7 +633,7 @@ function onOrient(e,isAbs){
  } else return;
  sens.ok=true;
  if(st.mode!=="sensor")setMode("sensor");
- const pv=hvec(wrap360(bAz+corr+st.cal.daz),clamp(Math.asin(clamp(back[2]))/D+st.cal.dalt,-90,90));
+ const pv=hvec(wrap360(bAz+corr+st.cal.daz),Math.asin(clamp(back[2]))/D);
  sens.v=sens.v?sens.v.map((x,i)=>x+(pv[i]-x)*0.25):pv;
  const p=toAA(sens.v);st.point.az=p.az;st.point.alt=p.alt;
  const hd=wrap360((flat?tAz:bAz)+corr+st.cal.daz);
