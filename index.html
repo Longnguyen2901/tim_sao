@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090e1c">
+<title>Tìm Sao</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+/* Layout: one-screen night tool. Slim top bar, full-bleed working area, thumb-reach tab bar. Dark-first by design (used outdoors at night), with a red night-vision mode. */
+:root{
+  --bg:#090e1c; --surface:#121a2e; --line:#243050; --fg:#e8ebf4; --muted:#8b95b4;
+  --accent:#f4b63f; --good:#5fd39a; --sky:#0c1430; --ground:#04060b; --cline:#4d5f9c;
+  --f-display:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+:root.red{
+  --bg:#0a0000; --surface:#160302; --line:#3b0b08; --fg:#ff5947; --muted:#a3332a;
+  --accent:#ff8a66; --good:#ffae8f; --sky:#0b0101; --ground:#000000; --cline:#7c1f17;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;margin:0;display:flex;flex-direction:column;overflow:hidden;-webkit-tap-highlight-color:transparent}
+button,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:800;font-size:18px;letter-spacing:-.01em;margin-right:auto}
+.brand span{color:var(--accent)}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;white-space:nowrap}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+select.chip{appearance:none;-webkit-appearance:none;padding-right:11px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+main{flex:1;position:relative;min-height:0}
+.view{position:absolute;inset:0;overflow-y:auto}
+.pad{padding:16px;display:flex;flex-direction:column;gap:14px;max-width:560px;margin:0 auto}
+
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg)}
+.tabs button{background:none;border:0;padding:10px 4px 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12.5px;color:var(--muted)}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-selected="true"]{color:var(--accent)}
+
+/* compass */
+.dialwrap{display:flex;justify-content:center}
+#dial{width:min(78vw,340px);height:auto;touch-action:none}
+.facing{text-align:center}
+.facing .big{font-family:var(--f-display);font-weight:800;font-size:30px;line-height:1.1;text-wrap:balance}
+.facing .sub{color:var(--muted)}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px}
+.note b{color:var(--accent);font-weight:600}
+.fist{display:flex;gap:12px;align-items:center}
+.fist svg{flex:none;width:64px;height:48px}
+
+/* tonight */
+.banner{border:1px dashed var(--accent);border-radius:12px;padding:12px 14px;font-size:14px}
+.times{display:flex;gap:6px;flex-wrap:wrap}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:start}
+.item h3{margin:0;font-size:16.5px;font-weight:600;min-width:0}
+.item .where{grid-column:1/-1;color:var(--fg);font-size:14px}
+.item .tip{grid-column:1/-1;color:var(--muted);font-size:13.5px}
+.item .go{grid-column:1/-1;justify-self:start;margin-top:6px;background:var(--accent);color:var(--bg);border:0;border-radius:8px;padding:8px 14px;font-weight:600}
+.lvl{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--muted)}
+.lvl.l1{border-color:var(--good);color:var(--good)}
+.lvl.l3{border-style:dashed}
+.empty{color:var(--muted);text-align:center;padding:24px 0}
+h2{font-family:var(--f-display);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:4px 0 0;font-weight:600}
+
+/* sky */
+#v-sky{overflow:hidden}
+#sky{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.guide{position:absolute;left:12px;right:12px;top:12px;background:color-mix(in srgb,var(--bg) 82%,transparent);border:1px solid var(--line);border-radius:14px;padding:10px 14px;backdrop-filter:blur(4px)}
+.guide .t{font-size:13px;color:var(--muted)}
+.guide .ins{font-family:var(--f-display);font-weight:800;font-size:21px;line-height:1.2;text-wrap:balance}
+.guide.found{border-color:var(--good)}
+.guide.found .ins{color:var(--good)}
+.guide .tip{font-size:13.5px;color:var(--muted);margin-top:4px}
+.skybar{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.skybar .chip{background:color-mix(in srgb,var(--bg) 85%,transparent);padding:8px 13px}
+.readout{position:absolute;right:14px;bottom:62px;font-size:12px;color:var(--muted);text-align:right}
+
+/* overlay */
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:10;overflow-y:auto}
+.overlay .pad{padding-block:28px}
+.overlay h1{font-family:var(--f-display);font-weight:800;font-size:32px;line-height:1.1;margin:0;text-wrap:balance}
+.overlay h1 span{color:var(--accent)}
+.steps{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}
+.steps li::before{counter-increment:s;content:counter(s);width:26px;height:26px;border-radius:50%;border:1px solid var(--accent);color:var(--accent);display:grid;place-items:center;font-family:var(--f-mono);font-size:13px}
+.primary{background:var(--accent);color:var(--bg);border:0;border-radius:12px;padding:14px;font-weight:800;font-size:17px}
+.ghost{background:none;border:1px solid var(--line);border-radius:12px;padding:12px;font-weight:600}
+.eight{display:flex;gap:14px;align-items:center}
+.eight svg{flex:none;width:96px;height:56px}
+.eight path.trail{fill:none;stroke:var(--line);stroke-width:3}
+.eight circle{fill:var(--accent)}
+.toast{position:fixed;left:16px;right:16px;bottom:84px;z-index:20;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;font-size:14px}
+@media (prefers-reduced-motion:reduce){.eight animateMotion{display:none}}
+</style>
+
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Tìm <span>Sao</span></div>
+  <button class="chip mono" id="timeChip" title="Thời điểm đang xem">--:--</button>
+  <select class="chip" id="place" aria-label="Vị trí"></select>
+  <button class="chip" id="redBtn" aria-pressed="false" title="Chế độ đèn đỏ giữ mắt quen tối">Đèn đỏ</button>
+</header>
+
+<main>
+  <section class="view" id="v-compass" role="tabpanel">
+    <div class="pad">
+      <div class="dialwrap"><svg id="dial" viewBox="-160 -170 320 330" aria-label="La bàn"></svg></div>
+      <div class="facing">
+        <div class="big" id="faceTxt">Hướng Bắc</div>
+        <div class="sub mono" id="faceDeg">0°</div>
+      </div>
+      <div class="note" id="compassHint">Cầm điện thoại nằm ngang trước ngực. Quay người cho đến khi chữ <b>B</b> nằm ngay dưới vạch vàng: lúc đó bạn đang nhìn về <b>hướng Bắc</b>.</div>
+      <div class="note fist">
+        <svg viewBox="0 0 64 48" aria-hidden="true"><path d="M6 40 L58 40" stroke="currentColor" stroke-opacity=".4"/><path d="M10 40 A30 30 0 0 1 40 10" fill="none" stroke="currentColor" stroke-opacity=".4" stroke-dasharray="3 3"/><rect x="34" y="16" width="16" height="14" rx="4" fill="none" stroke="currentColor"/><path d="M10 40 L36 22 M10 40 L44 30" stroke="var(--accent)"/></svg>
+        <div><b>Đo độ cao bằng nắm tay.</b> Duỗi thẳng tay, nắm tay lại: một nắm tay che khoảng <b>10°</b> bầu trời. "Cao 3 nắm tay" nghĩa là xếp 3 nắm tay chồng lên nhau tính từ chân trời.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="v-tonight" role="tabpanel" hidden>
+    <div class="pad">
+      <div class="times" id="times"></div>
+      <div class="banner" id="dayBanner" hidden></div>
+      <h2 id="listHead">Đang ở trên trời</h2>
+      <div class="list" id="list"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-sky" role="tabpanel" hidden>
+    <canvas id="sky"></canvas>
+    <div class="guide" id="guide">
+      <div class="t" id="gName">Chưa chọn mục tiêu</div>
+      <div class="ins" id="gIns">Chọn một mục ở tab "Tối nay"</div>
+      <div class="tip" id="gTip"></div>
+    </div>
+    <div class="readout mono" id="readout"></div>
+    <div class="skybar">
+      <button class="chip" id="modeBtn">Chế độ: kéo tay</button>
+      <button class="chip" id="jumpBtn" hidden>Tới mục tiêu</button>
+      <button class="chip" id="calBtn" hidden>Căn chỉnh theo mục tiêu</button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-v="v-compass" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 5l3 7-3 7-3-7z" fill="currentColor" fill-opacity=".25"/></svg>Hướng</button>
+  <button role="tab" data-v="v-tonight" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 7h14M5 12h14M5 17h9"/></svg>Tối nay</button>
+  <button role="tab" data-v="v-sky" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18L9 9l5 4 6-8"/><circle cx="9" cy="9" r="1.6" fill="currentColor"/><circle cx="14" cy="13" r="1.6" fill="currentColor"/><circle cx="20" cy="5" r="1.6" fill="currentColor"/></svg>Bầu trời</button>
+</nav>
+
+<div class="overlay" id="intro">
+  <div class="pad">
+    <h1>Tìm <span>Sao</span></h1>
+    <p style="margin:0;color:var(--muted)">Ứng dụng giúp bạn tìm hướng và nhận ra các chòm sao dễ nhất trên bầu trời tối nay. Không cần biết gì trước.</p>
+    <ol class="steps">
+      <li><div><b>Tìm hướng:</b> la bàn chỉ cho bạn đâu là Bắc, Nam, Đông, Tây.</div></li>
+      <li><div><b>Tối nay xem gì:</b> chỉ vài mục sáng, dễ thấy nhất lúc này.</div></li>
+      <li><div><b>Dẫn đường:</b> chĩa lưng điện thoại lên trời, làm theo mũi tên đến khi màn hình báo đúng.</div></li>
+    </ol>
+    <div class="note eight">
+      <svg viewBox="0 0 96 56" aria-hidden="true"><path class="trail" id="eightPath" d="M48 28 C60 8 88 8 88 28 C88 48 60 48 48 28 C36 8 8 8 8 28 C8 48 36 48 48 28Z"/><circle r="5"><animateMotion dur="2.4s" repeatCount="indefinite"><mpath href="#eightPath"/></animateMotion></circle></svg>
+      <div><b>Hiệu chỉnh la bàn:</b> xoay điện thoại theo hình số 8 khoảng 3 lần. Đứng xa xe máy, cột sắt và chân kính thiên văn vì kim loại làm la bàn chỉ sai.</div>
+    </div>
+    <button class="primary" id="startBtn">Bắt đầu</button>
+    <button class="ghost" id="manualStart">Dùng không cần cảm biến (kéo tay)</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+const D=Math.PI/180;
+const clamp=(x,a=-1,b=1)=>Math.max(a,Math.min(b,x));
+const wrap360=a=>((a%360)+360)%360;
+const wrap180=a=>{a=wrap360(a);return a>180?a-360:a};
+
+/* ---------- Catalog: [RA hours, Dec deg, mag, name] (J2000) ---------- */
+const S={
+ betelgeuse:[5.919,7.407,0.5,"Betelgeuse"],rigel:[5.242,-8.202,0.13,"Rigel"],bellatrix:[5.419,6.350,1.64,"Bellatrix"],saiph:[5.796,-9.670,2.07,"Saiph"],
+ alnitak:[5.679,-1.943,1.77,"Alnitak"],alnilam:[5.604,-1.202,1.69,"Alnilam"],mintaka:[5.533,-0.299,2.23,"Mintaka"],
+ dubhe:[11.062,61.751,1.8,"Dubhe"],merak:[11.031,56.383,2.37,"Merak"],phecda:[11.897,53.695,2.44,"Phecda"],megrez:[12.257,57.033,3.3,"Megrez"],
+ alioth:[12.900,55.960,1.77,"Alioth"],mizar:[13.399,54.925,2.27,"Mizar"],alkaid:[13.792,49.313,1.86,"Alkaid"],
+ polaris:[2.530,89.264,1.98,"Sao Bắc Cực"],kochab:[14.845,74.155,2.08,"Kochab"],
+ caph:[0.153,59.150,2.27,"Caph"],schedar:[0.675,56.537,2.24,"Schedar"],gcas:[0.945,60.717,2.15,"γ Cas"],ruchbah:[1.430,60.235,2.68,"Ruchbah"],segin:[1.907,63.670,3.37,"Segin"],
+ antares:[16.490,-26.432,1.06,"Antares"],dschubba:[16.006,-22.622,2.29,"Dschubba"],acrab:[16.091,-19.806,2.62,"Acrab"],pisco:[15.981,-26.114,2.89,"π Sco"],
+ sigsco:[16.353,-25.593,2.9,"σ Sco"],tausco:[16.598,-28.216,2.8,"τ Sco"],epssco:[16.836,-34.293,2.29,"ε Sco"],mu1sco:[16.864,-38.047,3.0,"μ Sco"],
+ zet2sco:[16.910,-42.362,3.6,"ζ Sco"],etasco:[17.203,-43.239,3.3,"η Sco"],sargas:[17.622,-42.998,1.86,"Sargas"],iotsco:[17.793,-40.127,3.0,"ι Sco"],
+ kapsco:[17.708,-39.030,2.4,"κ Sco"],shaula:[17.560,-37.104,1.62,"Shaula"],
+ vega:[18.616,38.784,0.03,"Vega"],deneb:[20.690,45.280,1.25,"Deneb"],altair:[19.846,8.868,0.77,"Altair"],
+ sadr:[20.370,40.257,2.23,"Sadr"],gienah:[20.770,33.970,2.48,"Gienah"],delcyg:[19.750,45.131,2.87,"δ Cyg"],albireo:[19.512,27.960,3.08,"Albireo"],
+ tarazed:[19.771,10.613,2.72,"Tarazed"],alshain:[19.922,6.407,3.7,"Alshain"],
+ kausaus:[18.403,-34.385,1.85,"Kaus Australis"],kausmed:[18.350,-29.828,2.7,"Kaus Media"],kausbor:[18.466,-25.422,2.8,"Kaus Borealis"],
+ nunki:[18.921,-26.297,2.05,"Nunki"],phisgr:[18.761,-26.991,3.2,"φ Sgr"],tausgr:[19.116,-27.671,3.3,"τ Sgr"],ascella:[19.044,-29.880,2.6,"Ascella"],alnasl:[18.097,-30.424,2.98,"Alnasl"],
+ markab:[23.079,15.205,2.48,"Markab"],scheat:[23.063,28.083,2.42,"Scheat"],algenib:[0.220,15.184,2.83,"Algenib"],alpheratz:[0.140,29.091,2.06,"Alpheratz"],
+ mirach:[1.162,35.620,2.05,"Mirach"],almach:[2.065,42.330,2.1,"Almach"],hamal:[2.120,23.460,2.0,"Hamal"],enif:[21.736,9.875,2.4,"Enif"],
+ aldebaran:[4.599,16.509,0.86,"Aldebaran"],alcyone:[3.791,24.105,2.87,"Tua Rua"],elnath:[5.438,28.608,1.65,"Elnath"],
+ castor:[7.577,31.888,1.58,"Castor"],pollux:[7.755,28.026,1.14,"Pollux"],
+ sirius:[6.752,-16.716,-1.46,"Sirius"],mirzam:[6.378,-17.956,1.98,"Mirzam"],adhara:[6.977,-28.972,1.5,"Adhara"],wezen:[7.140,-26.393,1.83,"Wezen"],
+ procyon:[7.655,5.225,0.34,"Procyon"],
+ regulus:[10.140,11.967,1.35,"Regulus"],denebola:[11.818,14.572,2.14,"Denebola"],algieba:[10.333,19.842,2.0,"Algieba"],zosma:[11.235,20.524,2.56,"Zosma"],
+ chertan:[11.237,15.430,3.3,"Chertan"],etaleo:[10.122,16.763,3.5,"η Leo"],epsleo:[9.764,23.774,2.98,"ε Leo"],muleo:[9.879,26.007,3.9,"μ Leo"],zetleo:[10.278,23.417,3.4,"ζ Leo"],
+ acrux:[12.443,-63.099,0.76,"Acrux"],mimosa:[12.795,-59.689,1.25,"Mimosa"],gacrux:[12.519,-57.113,1.64,"Gacrux"],delcru:[12.252,-58.749,2.79,"δ Cru"],
+ rigilkent:[14.660,-60.834,-0.27,"Alpha Centauri"],hadar:[14.064,-60.373,0.61,"Hadar"],
+ arcturus:[14.261,19.182,-0.05,"Arcturus"],spica:[13.420,-11.161,0.97,"Spica"],capella:[5.278,45.998,0.08,"Capella"],menkalinan:[5.992,44.948,1.9,"Menkalinan"],
+ fomalhaut:[22.961,-29.622,1.16,"Fomalhaut"],canopus:[6.399,-52.696,-0.74,"Canopus"],achernar:[1.629,-57.237,0.46,"Achernar"],
+ diphda:[0.727,-17.990,2.04,"Diphda"],alphard:[9.460,-8.659,1.98,"Alphard"],alphecca:[15.578,26.715,2.2,"Alphecca"],rasalhague:[17.582,12.560,2.07,"Rasalhague"],
+ mirfak:[3.405,49.860,1.8,"Mirfak"],algol:[3.136,40.956,2.1,"Algol"],alnair:[22.137,-46.960,1.74,"Alnair"],peacock:[20.427,-56.735,1.94,"Peacock"]
+};
+
+/* ---------- Beginner targets. level 1 = dễ, 2 = vừa, 3 = khó ---------- */
+const C=[
+ {id:"orion",name:"Orion (Thợ Săn)",level:1,lines:[["betelgeuse","bellatrix"],["betelgeuse","alnitak"],["bellatrix","mintaka"],["mintaka","alnilam"],["alnilam","alnitak"],["alnitak","saiph"],["mintaka","rigel"]],
+  tip:"Tìm 3 sao sáng nằm thẳng hàng, cách đều nhau: đó là Thắt lưng. Sao đỏ cam phía trên là vai (Betelgeuse), sao trắng xanh phía dưới là chân (Rigel)."},
+ {id:"dipper",name:"Bắc Đẩu (Cái Gáo)",level:1,lines:[["dubhe","merak"],["merak","phecda"],["phecda","megrez"],["megrez","dubhe"],["megrez","alioth"],["alioth","mizar"],["mizar","alkaid"]],
+  tip:"7 sao xếp hình cái gáo múc nước. Kéo dài đoạn nối 2 sao ở miệng gáo khoảng 5 lần sẽ tới Sao Bắc Cực."},
+ {id:"summer",name:"Tam giác mùa hè",level:1,lines:[["vega","deneb"],["deneb","altair"],["altair","vega"]],
+  tip:"3 sao rất sáng tạo thành một tam giác lớn. Vega sáng nhất và trắng xanh, Altair có 2 sao mờ hơn kẹp hai bên."},
+ {id:"scorpius",name:"Thiên Yết (Bọ Cạp)",level:1,lines:[["acrab","dschubba"],["dschubba","pisco"],["dschubba","sigsco"],["sigsco","antares"],["antares","tausco"],["tausco","epssco"],["epssco","mu1sco"],["mu1sco","zet2sco"],["zet2sco","etasco"],["etasco","sargas"],["sargas","iotsco"],["iotsco","kapsco"],["kapsco","shaula"]],
+  tip:"Sao đỏ cam Antares là tim bọ cạp. Thân và đuôi cong như cái móc câu thả xuống về phía chân trời."},
+ {id:"pleiades",name:"Tua Rua (Pleiades)",level:1,lines:[],members:["alcyone"],
+  tip:"Một chùm sao nhỏ, mờ như đám bụi sáng. Mắt thường đếm được 6 đến 7 sao. Nhìn lệch sang bên một chút sẽ thấy rõ hơn."},
+ {id:"teapot",name:"Ấm trà (Nhân Mã)",level:2,lines:[["alnasl","kausmed"],["kausmed","kausaus"],["kausaus","alnasl"],["kausmed","kausbor"],["kausbor","phisgr"],["phisgr","kausmed"],["phisgr","nunki"],["nunki","tausgr"],["tausgr","ascella"],["ascella","phisgr"],["ascella","kausaus"]],
+  tip:"8 sao xếp hình cái ấm trà có vòi và quai, nằm bên trái Bọ Cạp. Ở nơi tối, Ngân Hà trông như hơi nước bốc lên từ vòi ấm."},
+ {id:"cygnus",name:"Thiên Nga (Chữ thập phương Bắc)",level:2,lines:[["deneb","sadr"],["sadr","albireo"],["delcyg","sadr"],["sadr","gienah"]],
+  tip:"Một chữ thập lớn có Deneb ở đầu. Nó nằm trong Tam giác mùa hè, dọc theo dải Ngân Hà."},
+ {id:"pegasus",name:"Hình vuông Phi Mã",level:2,lines:[["markab","scheat"],["scheat","alpheratz"],["alpheratz","algenib"],["algenib","markab"],["alpheratz","mirach"],["mirach","almach"]],
+  tip:"4 sao vừa sáng tạo thành một hình vuông lớn, bên trong hầu như không có sao. Đây là mốc của bầu trời mùa thu."},
+ {id:"cassiopeia",name:"Thiên Hậu (chữ W)",level:2,lines:[["caph","schedar"],["schedar","gcas"],["gcas","ruchbah"],["ruchbah","segin"]],
+  tip:"5 sao xếp hình chữ W hoặc chữ M, ở phía Bắc. Nó nằm đối diện Bắc Đẩu qua Sao Bắc Cực."},
+ {id:"leo",name:"Sư Tử",level:2,lines:[["regulus","etaleo"],["etaleo","algieba"],["algieba","zetleo"],["zetleo","muleo"],["muleo","epsleo"],["algieba","zosma"],["zosma","denebola"],["denebola","chertan"],["chertan","regulus"]],
+  tip:"Hình dấu hỏi ngược (giống lưỡi liềm) kết thúc ở sao sáng Regulus, phía sau là một tam giác làm thân và đuôi."},
+ {id:"gemini",name:"Song Tử",level:2,lines:[["castor","pollux"]],
+  tip:"Hai sao sáng đứng gần nhau như hai anh em. Pollux hơi cam và sáng hơn Castor."},
+ {id:"canismajor",name:"Đại Khuyển & Sirius",level:1,lines:[["mirzam","sirius"],["sirius","wezen"],["wezen","adhara"]],
+  tip:"Sirius là ngôi sao sáng nhất bầu trời đêm, hay nhấp nháy nhiều màu khi ở thấp. Kéo dài Thắt lưng Orion xuống dưới bên trái sẽ gặp nó."},
+ {id:"crux",name:"Nam Thập Tự",level:3,lines:[["acrux","gacrux"],["mimosa","delcru"]],
+  tip:"Chữ thập nhỏ, rất thấp sát chân trời phía Nam ở Việt Nam. Hai sao sáng Alpha Centauri và Hadar bên cạnh chỉ về phía nó."},
+ {id:"polaris",name:"Sao Bắc Cực",level:2,lines:[],members:["polaris"],
+  tip:"Gần như đứng yên, luôn ở hướng Bắc. Ở Việt Nam nó thấp, độ cao bằng đúng vĩ độ nơi bạn đứng. Không sáng lắm nên hãy tìm Bắc Đẩu trước."},
+ {id:"arcturus",name:"Arcturus",level:1,lines:[],members:["arcturus"],tip:"Sao sáng màu cam. Đi theo đường cong cán gáo Bắc Đẩu sẽ tới nó."},
+ {id:"capella",name:"Capella",level:1,lines:[],members:["capella"],tip:"Sao rất sáng màu vàng, ở phía Bắc, mọc lên ở hướng Đông Bắc."},
+ {id:"aldebaran",name:"Aldebaran",level:1,lines:[],members:["aldebaran"],tip:"Mắt đỏ cam của con bò Kim Ngưu, nằm giữa Orion và chùm Tua Rua."},
+ {id:"fomalhaut",name:"Fomalhaut",level:2,lines:[],members:["fomalhaut"],tip:"Ngôi sao sáng đứng một mình ở trời phía Nam mùa thu, xung quanh rất ít sao sáng."},
+ {id:"spica",name:"Spica",level:2,lines:[],members:["spica"],tip:"Sao trắng xanh. Tiếp tục đường cong từ Bắc Đẩu qua Arcturus sẽ tới Spica."},
+ {id:"procyon",name:"Procyon",level:2,lines:[],members:["procyon"],tip:"Sao sáng bên trái Orion, cùng Sirius và Betelgeuse tạo thành Tam giác mùa đông."},
+ {id:"canopus",name:"Canopus",level:2,lines:[],members:["canopus"],tip:"Ngôi sao sáng thứ hai bầu trời đêm, ở thấp phía Nam, bên dưới Sirius."}
+];
+C.forEach(c=>{ if(!c.members){const s=new Set();c.lines.forEach(l=>{s.add(l[0]);s.add(l[1])});c.members=[...s];} });
+
+const BODIES=[
+ {id:"moon",name:"Mặt Trăng",level:1},
+ {id:"venus",name:"Sao Kim",level:1,tip:"Sáng nhất sau Mặt Trăng, ánh sáng đứng yên không nhấp nháy. Chỉ thấy gần chân trời lúc chạng vạng hoặc trước bình minh."},
+ {id:"jupiter",name:"Sao Mộc",level:1,tip:"Rất sáng, màu trắng ngà, không nhấp nháy. Ống nhòm cầm chắc tay có thể thấy vài mặt trăng nhỏ bên cạnh."},
+ {id:"saturn",name:"Sao Thổ",level:2,tip:"Màu vàng nhạt, sáng vừa, không nhấp nháy. Kính thiên văn nhỏ đã thấy được vành."},
+ {id:"mars",name:"Sao Hỏa",level:2,tip:"Màu đỏ cam rõ rệt, không nhấp nháy như các sao."}
+];
+
+/* ---------- Ephemeris (JPL approximate Keplerian elements, J2000) ---------- */
+const EL={
+ earth:[1.00000261,0.01671123,-0.00001531,100.46457166,102.93768193,0,0.00000562,-0.00004392,-0.01294668,35999.37244981,0.32327364,0],
+ venus:[0.72333566,0.00677672,3.39467605,181.9790995,131.60246718,76.67984255,0.0000039,-0.00004107,-0.0007889,58517.81538729,0.00268329,-0.27769418],
+ mars:[1.52371034,0.0933941,1.84969142,-4.55343205,-23.94362959,49.55953891,0.00001847,0.00007882,-0.00813131,19140.30268499,0.44441088,-0.29257343],
+ jupiter:[5.202887,0.04838624,1.30439695,34.39644051,14.72847983,100.47390909,-0.00011607,-0.00013253,-0.00183714,3034.74612775,0.21252668,0.20469106],
+ saturn:[9.53667594,0.05386179,2.48599187,49.95424423,92.59887831,113.66242448,-0.0012506,-0.00050991,0.00193609,1222.49362201,-0.41897216,-0.28867794]
+};
+function helio(el,T){
+ const a=el[0]+el[6]*T,e=el[1]+el[7]*T,I=(el[2]+el[8]*T)*D,L=el[3]+el[9]*T,w=el[4]+el[10]*T,O=(el[5]+el[11]*T)*D;
+ const M=wrap180(L-w)*D,om=(w-el[5]-el[11]*T)*D;
+ let E=M+e*Math.sin(M);for(let i=0;i<6;i++)E-=(E-e*Math.sin(E)-M)/(1-e*Math.cos(E));
+ const xp=a*(Math.cos(E)-e),yp=a*Math.sqrt(1-e*e)*Math.sin(E);
+ const co=Math.cos(om),so=Math.sin(om),cO=Math.cos(O),sO=Math.sin(O),cI=Math.cos(I),sI=Math.sin(I);
+ return[(co*cO-so*sO*cI)*xp+(-so*cO-co*sO*cI)*yp,(co*sO+so*cO*cI)*xp+(-so*sO+co*cO*cI)*yp,(so*sI)*xp+(co*sI)*yp];
+}
+const EPS=23.43928*D;
+function eclToEq(x,y,z){const yq=y*Math.cos(EPS)-z*Math.sin(EPS),zq=y*Math.sin(EPS)+z*Math.cos(EPS);
+ return{ra:wrap360(Math.atan2(yq,x)/D),dec:Math.atan2(zq,Math.hypot(x,yq))/D};}
+function moonEcl(d){
+ const Lp=218.316+13.176396*d,Mp=(134.963+13.064993*d)*D,F=(93.272+13.22935*d)*D,Dm=(297.85+12.190749*d)*D,Ms=(357.529+0.98560028*d)*D;
+ const lon=Lp+6.289*Math.sin(Mp)-1.274*Math.sin(2*Dm-Mp)+0.658*Math.sin(2*Dm)-0.186*Math.sin(Ms)-0.059*Math.sin(2*Dm-2*Mp)-0.057*Math.sin(2*Dm-Ms-Mp)+0.053*Math.sin(2*Dm+Mp)-0.114*Math.sin(2*F);
+ const lat=5.128*Math.sin(F)+0.281*Math.sin(Mp+F)-0.278*Math.sin(F-Mp)-0.173*Math.sin(F-2*Dm);
+ return{lon:wrap360(lon),lat};
+}
+function altaz(raDeg,dec,lst,lat){
+ const H=(lst-raDeg)*D,d=dec*D,p=lat*D;
+ const alt=Math.asin(clamp(Math.sin(p)*Math.sin(d)+Math.cos(p)*Math.cos(d)*Math.cos(H)));
+ const az=Math.atan2(-Math.cos(d)*Math.sin(H),Math.sin(d)*Math.cos(p)-Math.cos(d)*Math.cos(H)*Math.sin(p));
+ return{alt:alt/D,az:wrap360(az/D)};
+}
+function compute(date,lat,lon){
+ const JD=date.getTime()/86400000+2440587.5,d=JD-2451545,T=d/36525;
+ const lst=wrap360(280.46061837+360.98564736629*d+lon);
+ const out={stars:{},bodies:{}};
+ for(const k in S){const s=S[k];out.stars[k]=altaz(s[0]*15,s[1],lst,lat);}
+ const ea=helio(EL.earth,T);
+ const sunEq=eclToEq(-ea[0],-ea[1],-ea[2]);
+ out.sun=altaz(sunEq.ra,sunEq.dec,lst,lat);
+ const sunLon=wrap360(Math.atan2(-ea[1],-ea[0])/D);
+ const sunV=[-ea[0],-ea[1],-ea[2]],sunN=Math.hypot(...sunV);
+ for(const p of ["venus","mars","jupiter","saturn"]){
+  const h=helio(EL[p],T),g=[h[0]-ea[0],h[1]-ea[1],h[2]-ea[2]],gn=Math.hypot(...g);
+  const eq=eclToEq(...g),pos=altaz(eq.ra,eq.dec,lst,lat);
+  pos.elong=Math.acos(clamp((g[0]*sunV[0]+g[1]*sunV[1]+g[2]*sunV[2])/(gn*sunN)))/D;
+  out.bodies[p]=pos;
+ }
+ const m=moonEcl(d),ml=m.lon*D,mb=m.lat*D;
+ const meq=eclToEq(Math.cos(mb)*Math.cos(ml),Math.cos(mb)*Math.sin(ml),Math.sin(mb));
+ const mp=altaz(meq.ra,meq.dec,lst,lat);
+ mp.alt-=0.95*Math.cos(mp.alt*D); // parallax
+ const el=wrap360(m.lon-sunLon);
+ mp.illum=(1-Math.cos(el*D))/2; mp.waxing=el<180; mp.elong=Math.min(el,360-el);
+ out.bodies.moon=mp;
+ out.lst=lst;
+ return out;
+}
+
+/* ---------- Vector helpers (E,N,U) ---------- */
+const hvec=(az,alt)=>[Math.cos(alt*D)*Math.sin(az*D),Math.cos(alt*D)*Math.cos(az*D),Math.sin(alt*D)];
+const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const toAA=v=>({az:wrap360(Math.atan2(v[0],v[1])/D),alt:Math.asin(clamp(v[2]/Math.hypot(...v)))/D});
+const sep=(a,b)=>Math.acos(clamp(dot(hvec(a.az,a.alt),hvec(b.az,b.alt))))/D;
+
+/* ---------- Words ---------- */
+const DIRS=["Bắc","Đông Bắc","Đông","Đông Nam","Nam","Tây Nam","Tây","Tây Bắc"];
+const dirName=az=>DIRS[Math.round(wrap360(az)/45)%8];
+function fists(deg){const f=Math.round(Math.abs(deg)/10*2)/2;return f<=0.5?"nửa nắm tay":(f%1?String(f).replace(".",","):f)+" nắm tay";}
+function heightWords(alt){
+ if(alt>75)return"gần đỉnh đầu";
+ if(alt<12)return"rất thấp, sát chân trời";
+ return"cao khoảng "+fists(alt);
+}
+
+/* ---------- State ---------- */
+const PLACES=[["Buôn Ma Thuột",12.67,108.04],["Pleiku",13.98,108.0],["Kon Tum",14.35,108.0],["Đà Lạt",11.94,108.44],["Quy Nhơn",13.78,109.22],
+ ["Đà Nẵng",16.05,108.2],["Huế",16.46,107.59],["Hà Nội",21.03,105.85],["TP.HCM",10.78,106.7],["Cần Thơ",10.03,105.78]];
+const st={lat:12.67,lon:108.04,timeMode:"now",timeAt:null,mode:"manual",
+ point:{az:180,alt:35},heading:0,target:null,sky:null,skyAt:0,cal:{daz:0,dalt:0},found:false,view:"v-compass"};
+let colors={};
+function readColors(){const cs=getComputedStyle(document.documentElement);
+ for(const k of["bg","fg","muted","accent","good","sky","ground","cline","line"])colors[k]=cs.getPropertyValue("--"+k).trim();}
+
+function now(){return st.timeMode==="now"?new Date():new Date(st.timeAt);}
+function refreshSky(force){
+ const t=Date.now();
+ if(force||!st.sky||t-st.skyAt>2000){st.sky=compute(now(),st.lat,st.lon);st.skyAt=t;}
+ return st.sky;
+}
+function fmtTime(d){return d.toLocaleTimeString("vi-VN",{hour:"2-digit",minute:"2-digit"});}
+
+/* ---------- Targets ---------- */
+function targetPos(id,sky){
+ const b=sky.bodies[id];if(b)return{az:b.az,alt:b.alt};
+ const c=C.find(x=>x.id===id);if(!c)return null;
+ const v=[0,0,0];c.members.forEach(m=>{const p=sky.stars[m],h=hvec(p.az,p.alt);v[0]+=h[0];v[1]+=h[1];v[2]+=h[2];});
+ return toAA(v);
+}
+function targetInfo(id){
+ const c=C.find(x=>x.id===id);if(c)return{name:c.name,tip:c.tip,level:c.level};
+ const b=BODIES.find(x=>x.id===id);return b?{name:b.name,tip:b.tip,level:b.level}:null;
+}
+function moonTip(m){
+ const pct=Math.round(m.illum*100);
+ let phase=pct>=97?"Trăng tròn":pct<=3?"Trăng mới (gần như không thấy)":(m.waxing?"Trăng đang lớn":"Trăng đang khuyết")+`, sáng ${pct}%`;
+ return phase+". Mốc dễ nhất để thử chế độ dẫn đường và căn chỉnh la bàn.";
+}
+function visibleList(sky){
+ const out=[];
+ for(const b of BODIES){
+  const p=sky.bodies[b.id];
+  if(p.alt<8)continue;
+  if(b.id!=="moon"&&p.elong<15)continue;
+  if(b.id==="moon"&&p.illum<0.03)continue;
+  out.push({id:b.id,name:b.name,level:b.level,tip:b.id==="moon"?moonTip(p):b.tip,pos:p,kind:b.id==="moon"?0:1});
+ }
+ for(const c of C){
+  const p=targetPos(c.id,sky);
+  const minAlt=c.id==="polaris"||c.id==="crux"?5:12;
+  const allUp=c.members.every(m=>sky.stars[m].alt>2);
+  if(p.alt<minAlt||!allUp)continue;
+  out.push({id:c.id,name:c.name,level:c.level,tip:c.tip,pos:p,kind:2});
+ }
+ out.sort((a,b)=>a.level-b.level||a.kind-b.kind||b.pos.alt-a.pos.alt);
+ return out;
+}
+
+/* ---------- UI: tabs, places, time ---------- */
+const $=id=>document.getElementById(id);
+function showView(v){
+ st.view=v;
+ document.querySelectorAll(".view").forEach(el=>el.hidden=el.id!==v);
+ document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.v===v));
+ if(v==="v-tonight")renderList();
+ if(v==="v-sky")resizeCanvas();
+}
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.v)));
+
+const placeSel=$("place");
+PLACES.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p[0];placeSel.appendChild(o);});
+const gpsOpt=document.createElement("option");gpsOpt.value="gps";gpsOpt.textContent="Dùng GPS…";placeSel.appendChild(gpsOpt);
+placeSel.addEventListener("change",()=>{
+ if(placeSel.value==="gps"){
+  if(!navigator.geolocation){toast("Thiết bị không hỗ trợ GPS. Hãy chọn tỉnh/thành gần bạn.");placeSel.value=0;return;}
+  navigator.geolocation.getCurrentPosition(p=>{
+   st.lat=p.coords.latitude;st.lon=p.coords.longitude;gpsOpt.textContent=`GPS ${st.lat.toFixed(1)}°`;refreshSky(true);renderList();
+  },()=>{toast("Không lấy được vị trí. Hãy chọn tỉnh/thành gần bạn.");placeSel.value=0;setPlace(0);},{timeout:8000});
+ } else setPlace(+placeSel.value);
+});
+function setPlace(i){st.lat=PLACES[i][1];st.lon=PLACES[i][2];refreshSky(true);renderList();}
+
+function timeOptions(){
+ const n=new Date(),mk=(h,m,addDay)=>{const d=new Date(n);d.setDate(d.getDate()+(addDay?1:0));d.setHours(h,m,0,0);return d.getTime();};
+ const tonight20=n.getHours()>=20?null:mk(20,0);
+ const opts=[["now","Bây giờ",null]];
+ if(tonight20)opts.push(["t20","20:00 tối nay",tonight20]);
+ opts.push(["t22","22:00",n.getHours()>=22?mk(22,0,1):mk(22,0)]);
+ opts.push(["t430","4:30 sáng",n.getHours()<4?mk(4,30):mk(4,30,1)]);
+ return opts;
+}
+let timeKey="now";
+function renderTimes(){
+ const box=$("times");box.innerHTML="";
+ timeOptions().forEach(([k,label,at])=>{
+  const b=document.createElement("button");b.className="chip"+(k===timeKey?" on":"");b.textContent=label;
+  b.addEventListener("click",()=>{timeKey=k;st.timeMode=at?"at":"now";st.timeAt=at;refreshSky(true);renderTimes();renderList();updateTimeChip();});
+  box.appendChild(b);
+ });
+}
+function updateTimeChip(){$("timeChip").textContent=(st.timeMode==="now"?"":"⏱ ")+fmtTime(now());}
+$("timeChip").addEventListener("click",()=>showView("v-tonight"));
+
+$("redBtn").addEventListener("click",()=>{
+ const on=document.documentElement.classList.toggle("red");
+ $("redBtn").setAttribute("aria-pressed",on);$("redBtn").classList.toggle("on",on);readColors();
+});
+
+/* ---------- Tonight list ---------- */
+function renderList(){
+ const sky=refreshSky(true);
+ renderTimes();
+ const ban=$("dayBanner");
+ if(sky.sun.alt>-6){
+  ban.hidden=false;
+  ban.innerHTML=sky.sun.alt>0?"<b>Trời đang sáng.</b> Danh sách dưới đây là các vật đang ở trên trời nhưng mắt thường chưa thấy được (trừ Mặt Trăng, đôi khi Sao Kim). Chọn <b>20:00 tối nay</b> để chuẩn bị trước.":"<b>Đang chạng vạng.</b> Hành tinh và sao sáng nhất sẽ hiện ra trước, các chòm sao mờ hơn cần chờ trời tối hẳn.";
+ } else ban.hidden=true;
+ $("listHead").textContent=(st.timeMode==="now"?"Đang ở trên trời":"Trên trời lúc "+fmtTime(now()));
+ const list=$("list");list.innerHTML="";
+ const items=visibleList(sky);
+ if(!items.length){list.innerHTML='<div class="empty">Không có mục dễ nào đủ cao lúc này.</div>';return;}
+ const lv=["","Dễ","Vừa","Khó"];
+ items.forEach(it=>{
+  const el=document.createElement("div");el.className="item";
+  el.innerHTML=`<h3></h3><span class="lvl l${it.level}">${lv[it.level]}</span><div class="where"></div><div class="tip"></div><button class="go">Dẫn tôi tới đó</button>`;
+  el.querySelector("h3").textContent=it.name;
+  el.querySelector(".where").innerHTML=`Hướng <b>${dirName(it.pos.az)}</b>, ${heightWords(it.pos.alt)} <span class="mono" style="color:var(--muted)">(${Math.round(it.pos.az)}°, ${Math.round(it.pos.alt)}°)</span>`;
+  el.querySelector(".tip").textContent=it.tip;
+  el.querySelector(".go").addEventListener("click",()=>{st.target=it.id;st.found=false;showView("v-sky");updateGuide();});
+  list.appendChild(el);
+ });
+}
+
+/* ---------- Compass dial ---------- */
+const dial=$("dial");
+(function buildDial(){
+ const ns="http://www.w3.org/2000/svg";
+ let h=`<circle r="138" fill="var(--surface)" stroke="var(--line)"/>`;
+ h+=`<g id="ring">`;
+ for(let a=0;a<360;a+=10){const big=a%90===0,mid=a%30===0,r1=138,r2=big?116:mid?124:130;
+  const s=Math.sin(a*D),c=-Math.cos(a*D);
+  h+=`<line x1="${s*r1}" y1="${c*r1}" x2="${s*r2}" y2="${c*r2}" stroke="${big?"var(--fg)":"var(--muted)"}" stroke-width="${big?2.5:1.2}"/>`;}
+ const L=[["B",0],["Đ",90],["N",180],["T",270],["ĐB",45],["ĐN",135],["TN",225],["TB",315]];
+ L.forEach(([t,a])=>{const s=Math.sin(a*D)*96,c=-Math.cos(a*D)*96,main=t.length===1;
+  h+=`<text x="${s}" y="${c}" text-anchor="middle" dominant-baseline="central" font-family="var(--f-display)" font-weight="${main?800:600}" font-size="${main?(t==="B"?34:26):14}" fill="${t==="B"?"var(--accent)":main?"var(--fg)":"var(--muted)"}" transform="rotate(${a} ${s} ${c})">${t}</text>`;});
+ h+=`</g>`;
+ h+=`<path d="M0 -168 L-11 -146 L11 -146 Z" fill="var(--accent)"/>`;
+ h+=`<circle r="4" fill="var(--muted)"/>`;
+ dial.innerHTML=h;
+})();
+let ring=null;
+function updateCompass(){
+ if(!ring)ring=document.getElementById("ring");
+ const hd=st.mode==="sensor"?st.heading:st.point.az;
+ ring.setAttribute("transform",`rotate(${-hd})`);
+ $("faceTxt").textContent="Hướng "+dirName(hd);
+ $("faceDeg").textContent=Math.round(wrap360(hd))+"°";
+}
+/* drag dial in manual mode */
+(function(){let last=null;
+ dial.addEventListener("pointerdown",e=>{if(st.mode!=="manual")return;last=Math.atan2(e.offsetY-dial.clientHeight/2,e.offsetX-dial.clientWidth/2);dial.setPointerCapture(e.pointerId);});
+ dial.addEventListener("pointermove",e=>{if(last==null)return;const a=Math.atan2(e.offsetY-dial.clientHeight/2,e.offsetX-dial.clientWidth/2);
+  st.point.az=wrap360(st.point.az-(a-last)/D);last=a;});
+ dial.addEventListener("pointerup",()=>last=null);dial.addEventListener("pointercancel",()=>last=null);
+})();
+
+/* ---------- Sky canvas ---------- */
+const cv=$("sky"),ctx=cv.getContext("2d");let W=0,H=0,DPR=1;
+function resizeCanvas(){DPR=Math.min(window.devicePixelRatio||1,2);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;}
+window.addEventListener("resize",()=>{if(st.view==="v-sky")resizeCanvas();});
+const FOV=70;
+function camera(){
+ const az=st.point.az,alt=clamp(st.point.alt,-89,89);
+ const f=hvec(az,alt),r=[Math.cos(az*D),-Math.sin(az*D),0],u=cross(r,f);
+ const k=(Math.min(W,H*0.9)/2)/Math.tan(FOV/2*D);
+ return{f,r,u,k,cx:W/2,cy:H*0.55,alt};
+}
+function proj(cam,v){const z=dot(v,cam.f);if(z<0.08)return null;return[cam.cx+dot(v,cam.r)/z*cam.k,cam.cy-dot(v,cam.u)/z*cam.k,z];}
+function drawSky(){
+ const sky=refreshSky(),cam=camera();
+ ctx.setTransform(DPR,0,0,DPR,0,0);
+ ctx.fillStyle=colors.sky;ctx.fillRect(0,0,W,H);
+ const tgt=st.target?C.find(c=>c.id===st.target):null;
+ // constellation lines
+ ctx.lineWidth=1.2;
+ for(const c of C){
+  const hi=tgt&&tgt.id===c.id;
+  ctx.strokeStyle=hi?colors.accent:colors.cline;ctx.lineWidth=hi?2:1.1;ctx.globalAlpha=hi?0.95:0.55;
+  ctx.beginPath();
+  for(const[a,b]of c.lines){const pa=sky.stars[a],pb=sky.stars[b];
+   const A=proj(cam,hvec(pa.az,pa.alt)),B=proj(cam,hvec(pb.az,pb.alt));if(!A||!B)continue;ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);}
+  ctx.stroke();
+ }
+ ctx.globalAlpha=1;
+ // stars
+ ctx.font="12px "+getComputedStyle(document.body).fontFamily;ctx.textBaseline="middle";
+ for(const k in S){const p=sky.stars[k],P=proj(cam,hvec(p.az,p.alt));if(!P||P[0]<-20||P[0]>W+20||P[1]<-20||P[1]>H+20)continue;
+  const m=S[k][2],rad=Math.max(1.1,3.9-m*0.95);
+  ctx.fillStyle=colors.fg;ctx.beginPath();ctx.arc(P[0],P[1],rad,0,7);ctx.fill();
+  if(m<1.4||(tgt&&tgt.members.includes(k)&&m<2.5)){ctx.fillStyle=colors.muted;ctx.fillText(S[k][3],P[0]+rad+4,P[1]);}
+ }
+ // bodies
+ for(const b of BODIES){const p=sky.bodies[b.id],P=proj(cam,hvec(p.az,p.alt));if(!P)continue;
+  const isMoon=b.id==="moon",rad=isMoon?11:4.5;
+  ctx.fillStyle=isMoon?colors.fg:colors.accent;ctx.beginPath();ctx.arc(P[0],P[1],rad,0,7);ctx.fill();
+  if(isMoon&&p.illum<0.97){ctx.fillStyle=colors.sky;ctx.globalAlpha=0.8;ctx.beginPath();ctx.arc(P[0]+(p.waxing?-1:1)*rad*2*p.illum,P[1],rad,0,7);ctx.fill();ctx.globalAlpha=1;}
+  ctx.fillStyle=colors.accent;ctx.fillText(b.name,P[0]+rad+5,P[1]);}
+ // sun warning
+ const sp=proj(cam,hvec(sky.sun.az,sky.sun.alt));
+ if(sp&&sky.sun.alt>-2){ctx.fillStyle="#ffcc33";ctx.beginPath();ctx.arc(sp[0],sp[1],14,0,7);ctx.fill();ctx.fillStyle=colors.fg;ctx.fillText("Mặt Trời: không nhìn thẳng!",sp[0]+18,sp[1]);}
+ // ground
+ if(cam.alt<88){const hy=cam.cy+Math.tan(cam.alt*D)*cam.k;
+  if(hy<H){ctx.fillStyle=colors.ground;ctx.globalAlpha=0.92;ctx.fillRect(0,Math.max(0,hy),W,H);ctx.globalAlpha=1;
+   ctx.strokeStyle=colors.muted;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,hy);ctx.lineTo(W,hy);ctx.stroke();}
+  for(let a=0;a<360;a+=45){const P=proj(cam,hvec(a,0));if(!P||P[0]<0||P[0]>W)continue;
+   ctx.fillStyle=a===0?colors.accent:colors.fg;ctx.font="600 15px "+getComputedStyle(document.body).fontFamily;ctx.textAlign="center";
+   ctx.fillText(DIRS[a/45],P[0],P[1]+16);ctx.textAlign="left";}
+ }
+ ctx.font="12px "+getComputedStyle(document.body).fontFamily;
+ // reticle
+ ctx.strokeStyle=st.found?colors.good:colors.fg;ctx.globalAlpha=0.8;ctx.lineWidth=1.5;
+ ctx.beginPath();ctx.arc(cam.cx,cam.cy,Math.tan(6*D)*cam.k,0,7);ctx.stroke();ctx.globalAlpha=1;
+ // target marker / edge arrow
+ if(st.target){
+  const tp=targetPos(st.target,sky),v=hvec(tp.az,tp.alt),z=dot(v,cam.f);
+  let x=dot(v,cam.r),y=dot(v,cam.u);
+  const P=z>0.08?[cam.cx+x/z*cam.k,cam.cy-y/z*cam.k]:null;
+  const m=34;
+  if(P&&P[0]>m&&P[0]<W-m&&P[1]>110&&P[1]<H-80){
+   ctx.strokeStyle=colors.accent;ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(P[0],P[1],28,0,7);ctx.stroke();ctx.setLineDash([]);
+  } else {
+   const ang=Math.atan2(-y,x),ex=cam.cx+Math.cos(ang)*Math.min(W/2-m,H/2),ey=clamp(cam.cy+Math.sin(ang)*Math.min(W/2-m,H/2),130,H-90);
+   ctx.save();ctx.translate(ex,ey);ctx.rotate(ang);ctx.fillStyle=colors.accent;
+   ctx.beginPath();ctx.moveTo(22,0);ctx.lineTo(-10,-14);ctx.lineTo(-4,0);ctx.lineTo(-10,14);ctx.closePath();ctx.fill();ctx.restore();
+  }
+ }
+ $("readout").textContent=`đang chĩa ${Math.round(st.point.az)}° · cao ${Math.round(st.point.alt)}°`;
+}
+
+/* manual drag on sky */
+(function(){let last=null;
+ cv.addEventListener("pointerdown",e=>{if(st.mode!=="manual")return;last=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);});
+ cv.addEventListener("pointermove",e=>{if(!last)return;const cam=camera(),s=1/cam.k/D;
+  st.point.az=wrap360(st.point.az-(e.clientX-last[0])*s/Math.max(0.3,Math.cos(st.point.alt*D)));
+  st.point.alt=clamp(st.point.alt+(e.clientY-last[1])*s,-30,89);last=[e.clientX,e.clientY];});
+ cv.addEventListener("pointerup",()=>last=null);cv.addEventListener("pointercancel",()=>last=null);
+})();
+
+/* ---------- Guidance ---------- */
+let foundBuzzed=false;
+function updateGuide(){
+ const g=$("guide");
+ $("jumpBtn").hidden=!st.target||st.mode!=="manual";
+ $("calBtn").hidden=!st.target||st.mode!=="sensor";
+ if(!st.target){$("gName").textContent="Chưa chọn mục tiêu";$("gIns").textContent='Chọn một mục ở tab "Tối nay"';$("gTip").textContent="";g.classList.remove("found");return;}
+ const sky=refreshSky(),tp=targetPos(st.target,sky),info=targetInfo(st.target);
+ $("gName").textContent=info.name+" · hướng "+dirName(tp.az)+", "+heightWords(tp.alt);
+ if(tp.alt<0){$("gIns").textContent="Đã lặn xuống dưới chân trời";g.classList.remove("found");return;}
+ const s=sep(st.point,tp);
+ st.found=s<7;
+ g.classList.toggle("found",st.found);
+ if(st.found){
+  $("gIns").textContent="Đúng hướng rồi! Nhìn dọc theo lưng điện thoại.";
+  if(!foundBuzzed&&navigator.vibrate){try{navigator.vibrate(120)}catch(e){}}
+  foundBuzzed=true;
+ } else {
+  foundBuzzed=false;
+  const dAz=wrap180(tp.az-st.point.az),dAlt=tp.alt-st.point.alt,parts=[];
+  const horizFactor=Math.cos(((tp.alt+st.point.alt)/2)*D);
+  if(Math.abs(dAz)*horizFactor>4)parts.push((dAz>0?"Quay sang phải ":"Quay sang trái ")+Math.round(Math.abs(dAz))+"°");
+  if(Math.abs(dAlt)>4)parts.push((dAlt>0?"nâng lên ":"hạ xuống ")+fists(dAlt));
+  let t=parts.join(", ");t=t.charAt(0).toUpperCase()+t.slice(1);
+  $("gIns").textContent=t||"Gần tới rồi";
+ }
+ $("gTip").textContent=st.target==="moon"?moonTip(sky.bodies.moon):info.tip;
+}
+
+$("jumpBtn").addEventListener("click",()=>{
+ const tp=targetPos(st.target,refreshSky()),from={...st.point},t0=performance.now();
+ const dAz=wrap180(tp.az-from.az);
+ (function step(t){const k=Math.min(1,(t-t0)/600),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+  st.point.az=wrap360(from.az+dAz*e);st.point.alt=from.alt+(tp.alt-from.alt)*e;if(k<1)requestAnimationFrame(step);})(t0);
+});
+$("calBtn").addEventListener("click",()=>{
+ const tp=targetPos(st.target,refreshSky());
+ st.cal.daz=wrap180(st.cal.daz+wrap180(tp.az-st.point.az));st.cal.dalt=st.cal.dalt+(tp.alt-st.point.alt);
+ toast("Đã căn chỉnh. Chỉ bấm nút này khi lưng điện thoại thật sự chĩa đúng vào mục tiêu bạn đang nhìn thấy.");
+});
+
+/* ---------- Sensors ---------- */
+const sens={delta:null,ok:false,v:null,hd:null};
+function onOrient(e,isAbs){
+ if(e.alpha==null)return;
+ const a=e.alpha*D,b=e.beta*D,g=(e.gamma||0)*D;
+ const cA=Math.cos(a),sA=Math.sin(a),cB=Math.cos(b),sB=Math.sin(b),cG=Math.cos(g),sG=Math.sin(g);
+ const back=[-(cA*sG+cG*sA*sB),-(sA*sG-cA*cG*sB),-cB*cG];
+ const top=[-cB*sA,cA*cB,sB];
+ const bAz=Math.atan2(back[0],back[1])/D,tAz=Math.atan2(top[0],top[1])/D;
+ const flat=Math.abs(back[2])>0.75;
+ let corr=0;
+ if(isAbs||e.absolute===true){corr=0;}
+ else if(typeof e.webkitCompassHeading==="number"&&e.webkitCompassHeading>=0){
+  const ref=flat?tAz:(Math.abs(back[2])<0.6?bAz:null);
+  if(ref!=null){const d=wrap180(e.webkitCompassHeading-ref);sens.delta=sens.delta==null?d:sens.delta+wrap180(d-sens.delta)*0.1;}
+  if(sens.delta==null)return;corr=sens.delta;
+ } else return;
+ sens.ok=true;
+ if(st.mode!=="sensor")setMode("sensor");
+ const pv=hvec(wrap360(bAz+corr+st.cal.daz),clamp(Math.asin(clamp(back[2]))/D+st.cal.dalt,-90,90));
+ sens.v=sens.v?sens.v.map((x,i)=>x+(pv[i]-x)*0.25):pv;
+ const p=toAA(sens.v);st.point.az=p.az;st.point.alt=p.alt;
+ const hd=wrap360((flat?tAz:bAz)+corr+st.cal.daz);
+ sens.hd=sens.hd==null?hd:wrap360(sens.hd+wrap180(hd-sens.hd)*0.2);st.heading=sens.hd;
+}
+function attachSensors(){
+ if("ondeviceorientationabsolute" in window)window.addEventListener("deviceorientationabsolute",e=>onOrient(e,true));
+ else window.addEventListener("deviceorientation",e=>onOrient(e,false));
+}
+function setMode(m,msg){
+ st.mode=m;
+ $("modeBtn").textContent=m==="sensor"?"Chế độ: cảm biến":"Chế độ: kéo tay";
+ $("compassHint").innerHTML=m==="sensor"
+  ?'Cầm điện thoại nằm ngang trước ngực. Quay người cho đến khi chữ <b>B</b> nằm ngay dưới vạch vàng: lúc đó bạn đang nhìn về <b>hướng Bắc</b>.'
+  :'Đang ở <b>chế độ kéo tay</b>: xoay vòng la bàn bằng ngón tay để xem các hướng. Trên điện thoại có la bàn, bấm "Chế độ" ở tab Bầu trời để bật cảm biến.';
+ updateGuide();
+ if(msg)toast(msg);
+}
+$("modeBtn").addEventListener("click",()=>{
+ if(st.mode==="sensor"){setMode("manual");return;}
+ requestSensors();
+});
+async function requestSensors(){
+ try{
+  if(typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"){
+   const r=await DeviceOrientationEvent.requestPermission();if(r!=="granted")throw new Error("denied");}
+  if(!sens.attached){attachSensors();sens.attached=true;}
+ }catch(e){setMode("manual","Chưa được cấp quyền dùng cảm biến hướng. Bạn vẫn có thể kéo màn hình để xem.");return;}
+ setTimeout(()=>{if(!sens.ok)setMode("manual","Không đọc được la bàn trên thiết bị hoặc trang này. Kéo màn hình để xoay bầu trời.");},2500);
+ try{if(navigator.wakeLock)await navigator.wakeLock.request("screen");}catch(e){}
+}
+
+let toastT=null;
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,4500);}
+
+$("startBtn").addEventListener("click",()=>{$("intro").hidden=true;requestSensors();});
+$("manualStart").addEventListener("click",()=>{$("intro").hidden=true;setMode("manual");});
+
+/* ---------- Loop ---------- */
+readColors();
+renderTimes();updateTimeChip();
+let lastSlow=0;
+(function loop(t){
+ if(st.view==="v-compass")updateCompass();
+ if(st.view==="v-sky"){if(!W)resizeCanvas();drawSky();}
+ if(t-lastSlow>250){updateGuide();lastSlow=t;}
+ if(t%30000<20)updateTimeChip();
+ requestAnimationFrame(loop);
+})(0);
+setInterval(updateTimeChip,20000);
+</script>
+
+</body>
+</html>
